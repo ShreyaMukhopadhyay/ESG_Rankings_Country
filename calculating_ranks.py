@@ -120,6 +120,7 @@ country_names ={
     "Türkiye": "Turkey",
     "United States": "United States of America",
     "Venezuela, RB": "Venezuela",
+    "Viet Nam": "Vietnam",
     "Yemen, Rep.": "Yemen"
 }
 
