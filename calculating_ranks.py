@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
 
-# sharepoint_path = r"/Users/wrngnfreeman/Library/CloudStorage/OneDrive-Personal/Women in AI/ESG_CSV"
-sharepoint_path = r"/Users/shreya/Library/CloudStorage/OneDrive-Personal/Work/Women in AI/ESG_CSV"
-# sharepoint_path = r"C:/Users/shrey/OneDrive/Work/Women in AI/ESG_CSV"
+sharepoint_path = r"/Users/shreya/Library/CloudStorage/OneDrive-Personal/Projects/ESG_Rankings"
 
 
 # Importing datasets
@@ -34,7 +32,6 @@ continents_data = pd.read_excel(
 long_data = pd.melt(
     frame=world_bank_data,
     id_vars=["Country Name", "Country Code", "Indicator Name", "Indicator Code"]
-    # value_vars=np.arange(start=2000, stop=2021, step=1).tolist()
 ).rename(
     columns={
         "variable": "Year"
