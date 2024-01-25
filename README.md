@@ -1,6 +1,6 @@
-# ESG_Rankings_Country
+# Ranking countries based on their ESG standards
 
-Established ranks consolidating ESG data from World Bank to compare ESG standing across countries
+Established ranks consolidating ESG [data from World Bank] (https://datacatalog.worldbank.org/search/dataset/0037651) to compare ESG standing across countries
 
 Final dashboard can be found on [My Tableau Public Dashboard](https://public.tableau.com/app/profile/shreya.mukhopadhyay/viz/ESGRankings/ESGRankings)
 
