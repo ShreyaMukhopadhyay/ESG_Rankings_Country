@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-sharepoint_path = r"/Users/shreya/Library/CloudStorage/OneDrive-Personal/Projects/ESG_Rankings"
+sharepoint_path = r"C:/Users/shrey/OneDrive/shared_projects/ESG Rankings"
 
 
 # Importing datasets
