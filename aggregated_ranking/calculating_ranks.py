@@ -1,14 +1,13 @@
 import numpy as np
 import pandas as pd
 
-sharepoint_path = r"C:/Users/shrey/OneDrive/shared_projects/ESG Rankings"
+sharepoint_path = r"/Users/wrngnfreeman/Library/CloudStorage/OneDrive-Personal/shared_projects/ESG Rankings"
 
 
 # Importing datasets
 world_bank_data = pd.read_excel(
     io=sharepoint_path + r"/raw_data/ESGEXCEL.xlsx",
-    sheet_name=r"Data",
-    engine = "openpyxl"
+    sheet_name=r"Data"
 )
 metrics_data = pd.read_excel(
     io=sharepoint_path + r"/raw_data/ESGEXCEL.xlsx",
@@ -194,7 +193,7 @@ long_data = long_data.loc[
     :
 ]
 
-## Listing features that are to bne ranked
+## Listing features that are to be ranked
 positive_impacts = [
     r"Renewable electricity output (% of total electricity output)",
     r"Renewable energy consumption (% of total final energy consumption)",
