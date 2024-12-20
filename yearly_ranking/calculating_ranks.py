@@ -1,5 +1,12 @@
+import math
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+from sklearn.metrics import mean_squared_error
+from scipy.optimize import curve_fit
+
+import warnings
+warnings.filterwarnings('ignore')
 
 sharepoint_path = r"/Users/wrngnfreeman/Library/CloudStorage/OneDrive-Personal/shared_projects/ESG Rankings"
 
@@ -27,6 +34,8 @@ continents_data = pd.read_excel(
 )
 
 # Data Preparation
+min_year = 1960
+max_year = 2023
 ## transforming data into long format
 long_data = pd.melt(
     frame=world_bank_data,
@@ -159,29 +168,29 @@ long_data = long_data.sort_values(
     ascending=[True, True, True]
 ).reset_index(drop=True)
 
-# Exporting long format dataframe
-with pd.ExcelWriter(
-    path=sharepoint_path + r"/intermediate_files/ESG_data.xlsx",
-    engine="openpyxl",
-    mode="w",
-    date_format='DD-MMM-YYYY',
-    datetime_format='DD-MMM-YYYY'
-) as writer:
-    long_data[["Country Name", "Indicator Name", "Year", "value"]].to_excel(
-        excel_writer=writer,
-        index=False,
-        sheet_name="ESG_data"
-    )
-    metrics_data.to_excel(
-        excel_writer=writer,
-        index=False,
-        sheet_name="Metrics"
-    )
-    region_data.to_excel(
-        excel_writer=writer,
-        index=False,
-        sheet_name="Regions"
-    )
+# # Exporting long format dataframe
+# with pd.ExcelWriter(
+#     path=sharepoint_path + r"/intermediate_files/ESG_data.xlsx",
+#     engine="openpyxl",
+#     mode="w",
+#     date_format='DD-MMM-YYYY',
+#     datetime_format='DD-MMM-YYYY'
+# ) as writer:
+#     long_data[["Country Name", "Indicator Name", "Year", "value"]].to_excel(
+#         excel_writer=writer,
+#         index=False,
+#         sheet_name="ESG_data"
+#     )
+#     metrics_data.to_excel(
+#         excel_writer=writer,
+#         index=False,
+#         sheet_name="Metrics"
+#     )
+#     region_data.to_excel(
+#         excel_writer=writer,
+#         index=False,
+#         sheet_name="Regions"
+#     )
 
 # Data preparation 2
 ## replacing 0's with NaNs
@@ -189,7 +198,7 @@ long_data = long_data[["Country Name", "Indicator Name", "Year", "value"]].repla
 
 ## Subsetting data for aggregation
 long_data = long_data.loc[
-    (long_data["Year"] >= 2015) & (long_data["Year"] <= 2020),
+    (long_data["Year"] >= min_year) & (long_data["Year"] <= max_year),
     :
 ]
 
@@ -293,61 +302,273 @@ long_data.loc[
 ])
 
 ## Aggregating features across years and at country level
-long_data = long_data.groupby(
-    by=[
-        r"Country Name",
-        r"Indicator Name"
-    ]
-).agg({"value": "median"}).reset_index(drop=False)
+# long_data = long_data.groupby(
+#     by=[
+#         r"Country Name",
+#         r"Indicator Name"
+#     ]
+# ).agg({"value": "median"}).reset_index(drop=False)
 
 ## Ranking features (lower the better)
-long_data = long_data.sort_values(by=["Country Name", "Indicator Name"]).reset_index(drop=True)
-for indicator in negative_impacts:
-    long_data.loc[
-        long_data["Indicator Name"] == indicator,
-        "value"
-    ] = long_data.loc[
-        long_data["Indicator Name"] == indicator,
-        "value"
-    ].rank(
-        method="first",
-        ascending=True
-    )
-del indicator
-for indicator in positive_impacts:
-    long_data.loc[
-        long_data["Indicator Name"] == indicator,
-        "value"
-    ] = long_data.loc[
-        long_data["Indicator Name"] == indicator,
-        "value"
-    ].rank(
-        method="first",
-        ascending=False
-    )
-del indicator
-long_data.fillna(value=193, inplace=True)
+long_data = long_data.sort_values(by=["Country Name", "Year", "Indicator Name"]).reset_index(drop=True)
+long_data["Rank"] = np.nan
+for year in tqdm(np.arange(start=long_data["Year"].min(), stop=long_data["Year"].max()+1, step=1)):
+    for indicator in negative_impacts:
+        long_data.loc[
+            (long_data["Indicator Name"] == indicator) & (long_data["Year"] == year),
+            "Rank"
+        ] = long_data.loc[
+            (long_data["Indicator Name"] == indicator) & (long_data["Year"] == year),
+            "value"
+        ].rank(
+            method="first",
+            ascending=True
+        )
+    del indicator
+    for indicator in positive_impacts:
+        long_data.loc[
+            (long_data["Indicator Name"] == indicator) & (long_data["Year"] == year),
+            "Rank"
+        ] = long_data.loc[
+            (long_data["Indicator Name"] == indicator) & (long_data["Year"] == year),
+            "value"
+        ].rank(
+            method="first",
+            ascending=False
+        )
+    del indicator
+del year
+long_data["Rank"] = long_data["Rank"].fillna(value=193)
 
-# Exporting datasets
-with pd.ExcelWriter(
-    path=sharepoint_path + r"/intermediate_files/ESG_data_ranked.xlsx",
-    engine="openpyxl",
-    mode="w",
-    date_format='DD-MMM-YYYY',
-    datetime_format='DD-MMM-YYYY'
-) as writer:
-    long_data.to_excel(
-        excel_writer=writer,
-        index=False,
-        sheet_name="ESG_data - Ranked"
-    )
-    metrics_data.to_excel(
-        excel_writer=writer,
-        index=False,
-        sheet_name="Metrics"
-    )
-    region_data.to_excel(
-        excel_writer=writer,
-        index=False,
-        sheet_name="Regions"
-    )
+# # Exporting datasets
+# with pd.ExcelWriter(
+#     path=sharepoint_path + r"/intermediate_files/ESG_data_ranked_yearly.xlsx",
+#     engine="openpyxl",
+#     mode="w",
+#     date_format='DD-MMM-YYYY',
+#     datetime_format='DD-MMM-YYYY'
+# ) as writer:
+#     long_data.to_excel(
+#         excel_writer=writer,
+#         index=False,
+#         sheet_name="ESG_data - Ranked"
+#     )
+#     metrics_data.to_excel(
+#         excel_writer=writer,
+#         index=False,
+#         sheet_name="Metrics"
+#     )
+#     region_data.to_excel(
+#         excel_writer=writer,
+#         index=False,
+#         sheet_name="Regions"
+#     )
+
+
+
+# Smothing historical data with 2 degree polynomial and then forecasting till 2050 with that equation
+fitted_data = pd.DataFrame(
+    {
+        "Country Name": [],
+        "Indicator Name": [],
+        "Year": [],
+        "value": [],
+        "fitted_value": []
+    }
+)
+missing = pd.DataFrame(
+    {
+        "Country Name": [],
+        "Indicator Name": []
+    }
+)
+for country in tqdm(long_data["Country Name"].unique().tolist()):
+    for indicator in long_data["Indicator Name"].unique().tolist():
+        temp_data = long_data.loc[
+            (long_data["Country Name"] == country) &\
+            (long_data["Indicator Name"] == indicator),
+            :
+        ].reset_index(drop=True)
+
+        x_orig = np.arange(start=min_year, stop=max_year+1, step=1)
+        y_orig = temp_data["value"].values.tolist()
+
+        if len(
+            [
+                temp_data.loc[temp_data["Year"]==i, "value"].values[0] \
+                for i in np.arange(start=max_year - (10-1), stop=max_year + 1, step=1) \
+                if math.isnan(temp_data.loc[temp_data["Year"]==i, "value"].values[0]) == False
+            ]
+        ) > 6:
+            temp_data = temp_data.loc[
+                temp_data["Year"].isin(np.arange(start=max_year - (10-1), stop=max_year + 1, step=1)),
+                :
+            ].dropna(how="any").reset_index(drop=True)
+        elif len(
+            [
+                temp_data.loc[temp_data["Year"]==i, "value"].values[0] \
+                for i in np.arange(start=max_year - (20-1), stop=max_year + 1, step=1) \
+                if math.isnan(temp_data.loc[temp_data["Year"]==i, "value"].values[0]) == False
+            ]
+        ) > 15:
+            temp_data = temp_data.loc[
+                temp_data["Year"].isin(np.arange(start=max_year - (20-1), stop=max_year + 1, step=1)),
+                :
+            ].dropna(how="any").reset_index(drop=True)
+        elif len(
+            [
+                temp_data.loc[temp_data["Year"]==i, "value"].values[0] \
+                for i in np.arange(start=min_year, stop=max_year + 1, step=1) \
+                if math.isnan(temp_data.loc[temp_data["Year"]==i, "value"].values[0]) == False
+            ]
+        ) > 0:            
+            temp_data = temp_data.dropna(how="any").reset_index(drop=True)
+
+        else:
+            missing = pd.concat(
+                [
+                    missing,
+                    pd.DataFrame(
+                        {
+                            "Country Name": [country],
+                            "Indicator Name": [indicator]
+                        }
+                    )
+                ],
+                axis=0
+            ).reset_index(drop=True)
+
+            continue
+
+        x = temp_data["Year"]
+        y = temp_data["value"]
+        # Fitting a 2 degree polynomial
+        coefficients = np.polyfit(x, y, deg=2)
+        polynomial = np.poly1d(coefficients)
+        # Projecting till 2050 with the fitted equation
+        x_fit = np.arange(start=min_year, stop=2051, step = 1)
+        y_fit = polynomial(x_fit)
+
+        fitted_data = pd.concat(
+            [
+                fitted_data,
+                pd.DataFrame(
+                    {
+                        "Country Name": np.repeat(a=country, repeats=len(y_orig) + len(x_fit)),
+                        "Indicator Name": np.repeat(a=indicator, repeats=len(y_orig) + len(x_fit)),
+                        "Year": np.arange(start=min_year, stop=2051, step = 1),
+                        "value": y_orig + np.repeat(a=np.nan, repeats=len(x_fit)).tolist(),
+                        "fitted_value": np.repeat(a=np.nan, repeats=len(y_orig)).tolist() + y_fit.tolist()
+                    }
+                )
+            ],
+            axis=0
+        )
+
+missing["key"] = 1
+missing = pd.merge(
+    left=missing,
+    right=pd.DataFrame(
+        {
+            "key": np.repeat(1, repeats=2050 - min_year + 1),
+            "Year": np.arange(start=min_year, stop=2051, step = 1)
+        }
+    ),
+    how="inner",
+    on="key"
+)
+missing[["value", "fitted_value"]] = np.nan
+missing.drop(columns="key", inplace=True)
+
+fitted_data = pd.concat(
+    [
+        fitted_data,
+        missing
+    ],
+    axis=0
+)
+fitted_data = fitted_data.sort_values(by=["Country Name", "Year", "Indicator Name"]).reset_index(drop=True)
+fitted_data["value"] = fitted_data[["value", "fitted_value"]].sum(axis=1)
+fitted_data["value"] = fitted_data["value"].replace(0, np.nan)
+fitted_data.drop(columns="fitted_value", inplace=True)
+
+fitted_data.to_csv(r"/Users/wrngnfreeman/Downloads/projection_v3.csv", index=False)
+
+
+import matplotlib.pyplot as plt
+country="Afghanistan"
+indicator=r"Access to electricity (% of population)"
+temp_data = long_data.loc[
+    (long_data["Country Name"] == country) &\
+    (long_data["Indicator Name"] == indicator),
+    :
+].reset_index(drop=True)
+
+# x = temp_data["Year"]
+# y = temp_data["value"]
+# plt.plot(x, y)
+# plt.show()
+
+x_orig = np.arange(start=1960, stop=2024, step=1) - 1960
+y_orig = temp_data["value"].values / 100
+
+temp_data.dropna(how="any", inplace=True)
+
+x = temp_data["Year"].values - 1960
+y = temp_data["value"].values / 100
+
+def logistic_function(x, L, x0, k, b):
+    return L / (1 + np.exp(-k * (x - x0))) + b
+
+initial_guess = [1, 5, 1, 0]
+param_bounds = ([0, 0, 0, -np.inf], [np.inf, np.inf, np.inf, np.inf])
+popt, pcov = curve_fit(f=logistic_function, xdata=x, ydata=y, bounds=param_bounds)
+
+
+
+coefficients = np.polyfit(x, y, deg=2)
+polynomial = np.poly1d(coefficients)
+
+x_fit = x_orig
+y_fit = logistic_function(x_fit, *popt)
+
+plt.scatter(x_orig, y_orig, label='Data')
+plt.plot(x_fit, y_fit, label='Best fit curve', color='red')
+plt.legend()
+plt.show()
+
+
+
+
+## Ranking features (lower the better)
+fitted_data = fitted_data.sort_values(by=["Country Name", "Year", "Indicator Name"]).reset_index(drop=True)
+fitted_data["Rank"] = np.nan
+for year in tqdm(np.arange(start=fitted_data["Year"].min(), stop=fitted_data["Year"].max()+1, step=1)):
+    for indicator in negative_impacts:
+        fitted_data.loc[
+            (fitted_data["Indicator Name"] == indicator) & (fitted_data["Year"] == year),
+            "Rank"
+        ] = fitted_data.loc[
+            (fitted_data["Indicator Name"] == indicator) & (fitted_data["Year"] == year),
+            "value"
+        ].rank(
+            method="first",
+            ascending=True
+        )
+    del indicator
+    for indicator in positive_impacts:
+        fitted_data.loc[
+            (fitted_data["Indicator Name"] == indicator) & (fitted_data["Year"] == year),
+            "Rank"
+        ] = fitted_data.loc[
+            (fitted_data["Indicator Name"] == indicator) & (fitted_data["Year"] == year),
+            "value"
+        ].rank(
+            method="first",
+            ascending=False
+        )
+    del indicator
+del year
+fitted_data["Rank"] = fitted_data["Rank"].fillna(value=193)
+
+fitted_data.to_csv(r"/Users/wrngnfreeman/Downloads/projection_v3.csv", index=False)
